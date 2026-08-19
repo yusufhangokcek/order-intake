@@ -1,0 +1,21 @@
+customer_id,name,country,credit_limit,blocked
+C1001,Akdeniz Gıda Sanayi A.Ş.,TR,705000,N
+C1002,Boğaziçi Lojistik Ltd.,TR,900000,N
+C1003,Çukurova Tarım Makine,TR,240000,N
+C1004,Doğu Anadolu Toptan,TR,240000,N
+C1005,Ege Denizcilik Hizmetleri,TR,490000,N
+C1006,Fırat Elektrik Malzeme,TR,20000,Y
+C1007,Güneydoğu İnşaat A.Ş.,TR,1675000,N
+C1008,Haliç Metal İşleme,TR,1390000,N
+C1009,Isparta Gül Kozmetik,TR,255000,N
+C1010,Kızılırmak Enerji Ltd.,TR,205000,N
+C1011,Marmara Ambalaj,TR,2625000,N
+C1012,Nemrut Otomotiv Yedek,TR,20000,Y
+C1013,Orta Anadolu Kimya,TR,630000,N
+C1014,Pamukkale Tekstil,TR,1580000,N
+C1015,Sakarya Soğutma Sistemleri,TR,685000,N
+C1016,Toros Maden A.Ş.,TR,1025000,N
+C1017,Uludağ Mobilya,TR,340000,N
+C1018,Van Süt Ürünleri,TR,1660000,N
+C1019,Yeşilırmak Kağıt,TR,980000,N
+C1020,Zonguldak Kömür Ticaret,TR,770000,N
