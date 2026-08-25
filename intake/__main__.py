@@ -1,17 +1,8 @@
 import sys
 import csv
-from datetime import datetime
+from intake.validate import run_validate, parse_date
 
 DATE_FORMATS = ["%Y-%m-%d", "%d.%m.%Y"]
-
-
-def parse_date(value):
-    for fmt in DATE_FORMATS:
-        try:
-            return datetime.strptime(value, fmt)
-        except ValueError:
-            continue
-    return None
 
 
 def profile_file(path, encoding="utf-8"):
@@ -97,6 +88,8 @@ def main():
     command = sys.argv[1]
     if command == "profile":
         run_profile()
+    elif command == "validate":
+        run_validate()
     else:
         print(f"Bilinmeyen komut: {command}")
 
