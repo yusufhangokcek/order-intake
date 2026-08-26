@@ -45,6 +45,22 @@ The `data/` folder contains three read-only source files:
 
 **Note:** `orders_2026_07.csv` is encoded in `cp1254` (Windows Turkish), not UTF-8. `customers.csv` and `materials.csv` are UTF-8.
 
+## Database
+
+Running `python -m intake init-db` creates `order_intake.db` (SQLite) with six tables:
+
+- `customers`, `materials` — direct loads from the source CSVs
+- `orders` — one row per order (order_id, customer_id, order_date, ship_to_city)
+- `order_lines` — one row per order line, linked to `orders` via `order_id` (composite primary key: order_id + line_no)
+- `load_errors` — rejected rows from `rejects.csv`, refreshed on every load
+- `load_batch` — a record of each load run (timestamp and row counts)
+
+Foreign keys are enforced (`PRAGMA foreign_keys = ON`). Loading is idempotent: running `python -m intake load` multiple times does not create duplicate rows or change the counts, because inserts use `INSERT OR IGNORE` on primary keys. The entire load runs inside a single transaction — if any insert fails, nothing from that run is persisted (verified manually by forcing a foreign key violation mid-load and confirming row counts were unchanged before and after).
+
+**Known limitation:** because `order_lines` inserts use `INSERT OR IGNORE`, a foreign key violation there is silently skipped rather than raised, unlike the deliberate test which used a plain `INSERT` to force a visible error. In normal operation this isn't an issue, since `order_lines` is only ever loaded from already-validated `clean.csv` rows.
+
+Run `python -m intake load` after `init-db` to populate the database from `clean.csv` and `rejects.csv`.
+
 ## Validation Rule Catalogue
 
 Applied in order; the first rule a row fails determines its rejection reason.
