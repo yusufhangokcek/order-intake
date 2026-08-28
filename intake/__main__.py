@@ -1,6 +1,8 @@
 import sys
 import csv
 from intake.validate import run_validate, parse_date
+from intake.db import create_schema
+from intake.db import create_schema, run_load 
 
 DATE_FORMATS = ["%Y-%m-%d", "%d.%m.%Y"]
 
@@ -90,6 +92,10 @@ def main():
         run_profile()
     elif command == "validate":
         run_validate()
+    elif command == "init-db":
+        create_schema()
+    elif command == "load":
+        run_load()
     else:
         print(f"Bilinmeyen komut: {command}")
 
