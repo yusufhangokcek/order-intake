@@ -3,6 +3,7 @@ import csv
 from intake.validate import run_validate, parse_date
 from intake.db import create_schema
 from intake.db import create_schema, run_load 
+from intake.report import run_report
 
 DATE_FORMATS = ["%Y-%m-%d", "%d.%m.%Y"]
 
@@ -96,6 +97,8 @@ def main():
         create_schema()
     elif command == "load":
         run_load()
+    elif command == "report":
+        run_report()
     else:
         print(f"Bilinmeyen komut: {command}")
 

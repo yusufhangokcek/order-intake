@@ -35,6 +35,14 @@ python -m intake validate
 
 This checks every row against 7 rejection rules (E001–E007) and 2 warning rules (W001–W002), applied in order — the first rule a row fails determines its rejection reason. Rows that pass are written to `clean.csv` (with a `warnings` column), and rejected rows are written to `rejects.csv` (with `error_code` and `error_message` columns). A summary is also printed to the console.
 
+Run the reporting command to generate business reports from the database (requires `init-db` and `load` to have been run first):
+
+```
+python -m intake report
+```
+
+This prints revenue by customer, revenue by week, top 10 materials by quantity and by value, rejection percentage by error code, price deviation from list price, and customers approaching or exceeding 80% of their credit limit.
+
 ## Data Files
 
 The `data/` folder contains three read-only source files:
@@ -56,6 +64,17 @@ Running `python -m intake init-db` creates `order_intake.db` (SQLite) with six t
 - `load_batch` — a record of each load run (timestamp and row counts)
 
 Foreign keys are enforced (`PRAGMA foreign_keys = ON`). Loading is idempotent: running `python -m intake load` multiple times does not create duplicate rows or change the counts, because inserts use `INSERT OR IGNORE` on primary keys. The entire load runs inside a single transaction — if any insert fails, nothing from that run is persisted (verified manually by forcing a foreign key violation mid-load and confirming row counts were unchanged before and after).
+
+## Reports
+
+Running `python -m intake report` on the current data produces:
+
+- **Revenue by customer:** ranges from 157,653.50 (C1013) to 701,692.75 (C1011).
+- **Revenue by week:** week 27 was highest (1,359,434.50), week 30 lowest (664,601.05).
+- **Top 10 materials by quantity vs. by value are different lists.** For example, MAT-1011 is the top material by value (1,838,500.00) but doesn't appear in the top 10 by quantity — it's a low-volume, high-price item. MAT-1015 is the opposite: highest by quantity (3,339 units) but only 10th by value — a high-volume, low-price item.
+- **Rejection percentage:** E004 accounts for the largest share of rejections (26.67%), E007 the smallest (6.67%).
+- **Price deviation:** MAT-1017 shows an unusually large deviation (222.26%) from its list price — worth investigating further. Three other materials exceed the 1% threshold used for W001 (MAT-1011: 12.00%, MAT-1001: 9.97%, MAT-1005: 1.17%), consistent with the 4 W001 warnings found during validation.
+- **Credit limit risk:** four customers (C1003, C1004, C1009, C1010) have reached or exceeded 80% of their credit limit; all four have relatively low limits (205,000–255,000).
 
 **Known limitation:** because `order_lines` inserts use `INSERT OR IGNORE`, a foreign key violation there is silently skipped rather than raised, unlike the deliberate test which used a plain `INSERT` to force a visible error. In normal operation this isn't an issue, since `order_lines` is only ever loaded from already-validated `clean.csv` rows.
 
