@@ -1,6 +1,7 @@
 import sqlite3
 import csv
-from datetime import datetime
+from datetime import datetime 
+from intake.validate import parse_date 
 
 DB_PATH = "order_intake.db"
 
@@ -111,10 +112,12 @@ def load_orders_and_lines(conn):
     for row in rows:
         order_id = row["order_id"]
         if order_id not in seen_orders:
+            normalized_date = parse_date(row["order_date"]).strftime("%Y-%m-%d")
             conn.execute(
                 "INSERT OR IGNORE INTO orders (order_id, customer_id, order_date, ship_to_city) VALUES (?, ?, ?, ?)",
-                (order_id, row["customer_id"], row["order_date"], row["ship_to_city"]),
+                (order_id, row["customer_id"], normalized_date, row["ship_to_city"]),
             )
+            
             seen_orders.add(order_id)
 
         conn.execute(
