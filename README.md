@@ -65,17 +65,6 @@ Running `python -m intake init-db` creates `order_intake.db` (SQLite) with six t
 
 Foreign keys are enforced (`PRAGMA foreign_keys = ON`). Loading is idempotent: running `python -m intake load` multiple times does not create duplicate rows or change the counts, because inserts use `INSERT OR IGNORE` on primary keys. The entire load runs inside a single transaction — if any insert fails, nothing from that run is persisted (verified manually by forcing a foreign key violation mid-load and confirming row counts were unchanged before and after).
 
-## Reports
-
-Running `python -m intake report` on the current data produces:
-
-- **Revenue by customer:** ranges from 157,653.50 (C1013) to 701,692.75 (C1011).
-- **Revenue by week:** week 27 was highest (1,359,434.50), week 30 lowest (664,601.05).
-- **Top 10 materials by quantity vs. by value are different lists.** For example, MAT-1011 is the top material by value (1,838,500.00) but doesn't appear in the top 10 by quantity — it's a low-volume, high-price item. MAT-1015 is the opposite: highest by quantity (3,339 units) but only 10th by value — a high-volume, low-price item.
-- **Rejection percentage:** E004 accounts for the largest share of rejections (26.67%), E007 the smallest (6.67%).
-- **Price deviation:** MAT-1017 shows an unusually large deviation (222.26%) from its list price — worth investigating further. Three other materials exceed the 1% threshold used for W001 (MAT-1011: 12.00%, MAT-1001: 9.97%, MAT-1005: 1.17%), consistent with the 4 W001 warnings found during validation.
-- **Credit limit risk:** four customers (C1003, C1004, C1009, C1010) have reached or exceeded 80% of their credit limit; all four have relatively low limits (205,000–255,000).
-
 **Known limitation:** because `order_lines` inserts use `INSERT OR IGNORE`, a foreign key violation there is silently skipped rather than raised, unlike the deliberate test which used a plain `INSERT` to force a visible error. In normal operation this isn't an issue, since `order_lines` is only ever loaded from already-validated `clean.csv` rows.
 
 Run `python -m intake load` after `init-db` to populate the database from `clean.csv` and `rejects.csv`.
@@ -118,6 +107,53 @@ Running `python -m intake validate` on the current data produces:
 - Rejection breakdown: E001: 4, E002: 3, E003: 4, E004: 8, E005: 5, E006: 4, E007: 2.
 - Warning breakdown (on passing rows): W001: 4, W002: 107.
 
+## Reports
+
+Running `python -m intake report` on the current data produces:
+
+- **Revenue by customer:** ranges from 157,653.50 (C1013) to 701,692.75 (C1011).
+- **Revenue by week:** week 27 was highest (1,359,434.50), week 30 lowest (664,601.05).
+- **Top 10 materials by quantity vs. by value are different lists.** For example, MAT-1011 is the top material by value (1,838,500.00) but doesn't appear in the top 10 by quantity — it's a low-volume, high-price item. MAT-1015 is the opposite: highest by quantity (3,339 units) but only 10th by value — a high-volume, low-price item.
+- **Rejection percentage:** E004 accounts for the largest share of rejections (26.67%), E007 the smallest (6.67%).
+- **Price deviation:** MAT-1017 shows an unusually large deviation (222.26%) from its list price — worth investigating further. Three other materials exceed the 1% threshold used for W001 (MAT-1011: 12.00%, MAT-1001: 9.97%, MAT-1005: 1.17%), consistent with the 4 W001 warnings found during validation.
+- **Credit limit risk:** four customers (C1003, C1004, C1009, C1010) have reached or exceeded 80% of their credit limit; all four have relatively low limits (205,000–255,000).
+
+## User Interface
+
+The interface is built with **FastAPI** (backend, `backend/main.py`) and **React** (frontend, `frontend/`), per a direct request from the mentor partway through Milestone 5 — the original plan was Streamlit, which was fully functional (file upload, validation, and results display) before the switch.
+
+### Setup
+
+In addition to the Python setup above, the frontend requires [Node.js](https://nodejs.org/) (LTS version) and npm.
+
+```
+cd frontend
+npm install
+```
+
+### Running
+
+Two processes need to run at the same time, in separate terminals:
+
+**Backend** (from the project root, with the virtual environment activated):
+```
+python -m uvicorn backend.main:app --reload
+```
+This serves the API at `http://127.0.0.1:8000`. Interactive API docs are available at `http://127.0.0.1:8000/docs`.
+
+**Frontend** (from the `frontend/` directory):
+```
+npm run dev
+```
+This serves the UI at the address printed in the terminal (typically `http://localhost:5173`).
+
+### Features
+
+- Upload an orders CSV file and run it through the validation rule catalogue (Milestone 2 logic, reused directly).
+- View a summary of clean vs. rejected rows, a breakdown by error code, and a filterable table of rejected rows.
+- View two of the Milestone 4 reports (revenue by customer, top materials by value) as tables and a bar chart, loaded automatically from the database.
+- Uploading a file with the wrong columns, or an unreadable encoding, returns a readable error message instead of a server crash or raw traceback.
+
 ## Known Limitations
 
 - The two out-of-range customer IDs (`C9999`, `C1021`) have not been explained.
@@ -125,3 +161,5 @@ Running `python -m intake validate` on the current data produces:
 - The specific `material_code` values causing the customer/material mismatch have not been individually inspected.
 - The high W002 count (107) has not been broken down by distinct customer — it's likely a small number of over-limit customers with many order lines each, but this hasn't been confirmed.
 - The automated test for E006 (duplicate detection) tests the underlying logic in isolation rather than calling `run_validate()` directly, so it won't automatically catch a future change to that function's duplicate-detection code.
+- The UI only surfaces 2 of the 7 Milestone 4 reports (revenue by customer, top materials by value); the rest are only available via `python -m intake report`.
+- There are no automated tests for the FastAPI endpoints or the React components.
