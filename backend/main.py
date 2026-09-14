@@ -167,9 +167,21 @@ def revenue_by_customer():
 
     conn.close()
 
+    # Müşteri ID → müşteri adı
+    with open("data/customers.csv", "r", encoding="utf-8") as f:
+        customers = list(csv.DictReader(f))
+
+    customer_names = {
+        row["customer_id"]: row["name"]
+        for row in customers
+    }
+
     return [
         {
-            "customer_id": r[0],
+            "customer_name": customer_names.get(
+                r[0],
+                r[0]
+            ),
             "revenue": r[1],
         }
         for r in rows
@@ -195,10 +207,85 @@ def top_materials_by_value():
 
     conn.close()
 
+    # Malzeme kodu → malzeme adı
+    with open("data/materials.csv", "r", encoding="utf-8") as f:
+        materials = list(csv.DictReader(f))
+
+    material_names = {
+        row["material_code"].strip().upper(): row["description"]
+        for row in materials
+    }
+
     return [
         {
-            "material_code": r[0],
+            "material_name": material_names.get(
+                r[0].strip().upper(),
+                r[0]
+            ),
             "value": r[1],
+        }
+        for r in rows
+    ]
+@app.get("/reports/orders-by-customer")
+def orders_by_customer():
+
+    conn = get_connection()
+
+    rows = conn.execute(
+        """
+        SELECT
+            customer_id,
+            COUNT(DISTINCT order_id)
+        FROM orders
+        GROUP BY customer_id
+        ORDER BY COUNT(DISTINCT order_id) DESC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    with open("data/customers.csv", "r", encoding="utf-8") as f:
+        customers = list(csv.DictReader(f))
+
+    customer_names = {
+        row["customer_id"]: row["name"]
+        for row in customers
+    }
+
+    return [
+        {
+            "customer_name": customer_names.get(
+                r[0],
+                r[0]
+            ),
+            "order_count": r[1],
+        }
+        for r in rows
+    ]
+
+
+@app.get("/reports/orders-by-city")
+def orders_by_city():
+
+    conn = get_connection()
+
+    rows = conn.execute(
+        """
+        SELECT
+            ship_to_city,
+            COUNT(DISTINCT order_id)
+        FROM orders
+        GROUP BY ship_to_city
+        ORDER BY COUNT(DISTINCT order_id) DESC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    return [
+        {
+            "city": r[0],
+            "order_count": r[1],
         }
         for r in rows
     ]
