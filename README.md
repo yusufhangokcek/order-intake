@@ -154,6 +154,30 @@ This serves the UI at the address printed in the terminal (typically `http://loc
 - View two of the Milestone 4 reports (revenue by customer, top materials by value) as tables and a bar chart, loaded automatically from the database.
 - Uploading a file with the wrong columns, or an unreadable encoding, returns a readable error message instead of a server crash or raw traceback.
 
+
+## Milestone 6 — German Subsidiary Integration
+
+A change request arrived mid-project: orders from a new German subsidiary need to appear in the same reporting as domestic orders. Their export format differs in several ways, handled in `intake/german.py`:
+
+- **Delimiter:** semicolons instead of commas.
+- **Column names:** German headers, mapped to the existing internal field names (e.g. `Auftragsnummer` → `order_id`).
+- **Number format:** German locale uses `.` as a thousands separator and `,` as the decimal separator (e.g. `1.500` means 1500, not 1.5). Parsing strips `.` first, then converts `,` to `.`, in that order — reversing the order would misread thousands separators.
+- **Currency:** prices are in EUR. Each price is converted to TRY and has 19% VAT applied before being treated as a normal `unit_price` (`price_eur * 1.19 * eur_to_try_rate`), so it flows through the rest of the pipeline (validation, database, reporting) exactly like a domestic TRY price.
+- **Missing `ship_to_city`:** the German export doesn't include this field; it's set to the fixed value `"Germany"`.
+
+German rows are validated against the same rule catalogue as domestic rows (E001–E006), with two exceptions:
+- **E007** (structural check for the domestic file's specific header-duplication bug) does not apply, since it's specific to the domestic file's format.
+- **W001** (price deviation from list price) does not apply, since `materials.csv` list prices are domestic TRY prices and are not a meaningful comparison for VAT-inclusive, currency-converted German prices — comparing them produced a false ~19% deviation (the VAT rate) on every German line. This exclusion is applied both in `intake/validate.py` and in the `report_price_deviation` SQL query (which filters to `orders.source = 'domestic'`).
+
+The `orders` table has a new `source` column (`'domestic'` or `'germany'`) to distinguish the two.
+
+A new report, revenue by customer in USD, converts the (TRY-denominated, combined) revenue figures using the USD/TRY rate in `fx_rates.csv`.
+
+**Known limitations specific to this change:**
+- No automated tests were added for the German-parsing or currency-conversion logic (time-constrained delivery).
+- The original EUR price is not retained after conversion — only the final TRY, VAT-inclusive price is stored. Reconstructing the original EUR amount would require re-deriving it from the stored TRY value and the FX rate used.
+- Exchange rates are read fresh from `fx_rates.csv` on each run; there's no handling for multiple rates with different `valid_from` dates — only one rate per currency pair is expected in the file.
+
 ## Known Limitations
 
 - The two out-of-range customer IDs (`C9999`, `C1021`) have not been explained.
