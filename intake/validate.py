@@ -4,13 +4,13 @@ from datetime import datetime
 DATE_FORMATS = ["%Y-%m-%d", "%d.%m.%Y", "%m/%d/%Y"]
 
 ERROR_MESSAGES = {
-    "E001": "Customer ID not found in customers.csv",
-    "E002": "Customer is blocked",
-    "E003": "Material code not found in materials.csv",
-    "E004": "Quantity is missing, not numeric, or not positive",
-    "E005": "Order date is missing, invalid, or in the future",
-    "E006": "Duplicate order_id + line_no combination",
-    "E007": "Row is structurally invalid (missing fields or duplicated header)",
+    "E001": "Müşteri ID'si customers.csv dosyasında bulunamadı",
+"E002": "Müşteri engellenmiş durumda",
+"E003": "Malzeme kodu materials.csv dosyasında bulunamadı",
+"E004": "Miktar eksik, sayısal değil veya pozitif değil",
+"E005": "Sipariş tarihi eksik, geçersiz veya gelecekte",
+"E006": "Aynı order_id + line_no kombinasyonu daha önce kullanılmış",
+"E007": "Satır yapısal olarak geçersiz (eksik alan veya yinelenen başlık)",
 }
 
 

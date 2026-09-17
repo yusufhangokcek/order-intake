@@ -1,4 +1,5 @@
 from intake.db import get_connection
+from intake.german import load_fx_rates
 
 
 def report_revenue_by_customer(conn):
@@ -11,6 +12,21 @@ def report_revenue_by_customer(conn):
     """).fetchall()
     for customer_id, revenue in rows:
         print(f"{customer_id}: {revenue:.2f}")
+    print()
+
+
+def report_revenue_by_customer_usd(conn):
+    fx_rates = load_fx_rates("data/fx_rates.csv")
+    usd_to_try = fx_rates[("USD", "TRY")]
+    print("--- Müşteriye göre gelir (USD) ---")
+    rows = conn.execute("""
+        SELECT orders.customer_id, SUM(order_lines.quantity * order_lines.unit_price)
+        FROM orders
+        JOIN order_lines ON orders.order_id = order_lines.order_id
+        GROUP BY orders.customer_id
+    """).fetchall()
+    for customer_id, revenue_try in rows:
+        print(f"{customer_id}: ${revenue_try / usd_to_try:.2f}")
     print()
 
 
@@ -68,13 +84,15 @@ def report_rejection_percentage(conn):
 
 
 def report_price_deviation(conn):
-    print("--- Fiyat sapması (en yüksekten) ---")
+    print("--- Fiyat sapması (en yüksekten, sadece domestic) ---")
     rows = conn.execute("""
         SELECT materials.material_code,
                ABS(order_lines.unit_price - materials.unit_price),
                ABS(order_lines.unit_price - materials.unit_price) * 100.0 / materials.unit_price
         FROM materials
         JOIN order_lines ON materials.material_code = order_lines.material_code
+        JOIN orders ON order_lines.order_id = orders.order_id
+        WHERE orders.source = 'domestic'
         ORDER BY ABS(order_lines.unit_price - materials.unit_price) * 100.0 / materials.unit_price DESC
     """).fetchall()
     for material_code, amount, percentage in rows[:10]:
@@ -100,6 +118,7 @@ def report_credit_limit_risk(conn):
 def run_report():
     conn = get_connection()
     report_revenue_by_customer(conn)
+    report_revenue_by_customer_usd(conn)
     report_revenue_by_week(conn)
     report_top_materials_by_quantity(conn)
     report_top_materials_by_value(conn)
