@@ -54,14 +54,22 @@ def check_material_exists(row, material_codes):
 
 def check_quantity_valid(row):
     value = row["quantity"]
+
     if not value:
         return "E004"
+
     try:
-        quantity = int(value)
+        cleaned_value = str(value).strip()
+        cleaned_value = cleaned_value.replace(" ", "")
+        cleaned_value = cleaned_value.replace(",", ".")
+
+        quantity = float(cleaned_value)
     except ValueError:
         return "E004"
+
     if quantity <= 0:
         return "E004"
+
     return None
 
 
@@ -181,7 +189,7 @@ def run_validate():
     customer_totals = {}
     for row in clean_rows:
         customer_id = row["customer_id"]
-        line_value = int(row["quantity"]) * float(row["unit_price"])
+        line_value = float(row["quantity"]) * float(row["unit_price"])
         customer_totals[customer_id] = customer_totals.get(customer_id, 0) + line_value
 
     warning_counts = {}

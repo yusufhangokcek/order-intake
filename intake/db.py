@@ -104,29 +104,59 @@ def load_materials(conn):
     return len(rows)
 
 
+
 def load_orders_and_lines(conn, rows=None):
+
     if rows is None:
         with open("clean.csv", "r", encoding="utf-8") as f:
             rows = list(csv.DictReader(f))
 
     seen_orders = set()
+
     for row in rows:
+
         order_id = row["order_id"]
+
         if order_id not in seen_orders:
+
             normalized_date = parse_date(row["order_date"]).strftime("%Y-%m-%d")
+
             conn.execute(
                 "INSERT OR IGNORE INTO orders (order_id, customer_id, order_date, ship_to_city, source) VALUES (?, ?, ?, ?, ?)",
-                (order_id, row["customer_id"], normalized_date, row["ship_to_city"], row.get("source", "domestic")),
+                (
+                    order_id,
+                    row["customer_id"],
+                    normalized_date,
+                    row["ship_to_city"],
+                    row.get("source", "domestic"),
+                ),
             )
+
             seen_orders.add(order_id)
+
+        quantity = (
+            str(row["quantity"])
+            .strip()
+            .replace(" ", "")
+            .replace(",", ".")
+        )
 
         conn.execute(
             "INSERT OR IGNORE INTO order_lines (order_id, line_no, material_code, quantity, unit_price) VALUES (?, ?, ?, ?, ?)",
-            (order_id, int(row["line_no"]), row["material_code"].strip().upper(), float(row["quantity"]), float(row["unit_price"])),
+            (
+                order_id,
+                int(row["line_no"]),
+                row["material_code"].strip().upper(),
+                float(quantity),
+                float(row["unit_price"]),
+            ),
         )
 
     print(f"Loaded {len(seen_orders)} orders and {len(rows)} order lines")
+
     return len(seen_orders), len(rows)
+
+
 
 
 def load_errors(conn):

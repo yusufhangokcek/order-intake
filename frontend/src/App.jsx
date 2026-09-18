@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react'
+
 import {
   BarChart,
   Bar,
@@ -8,7 +9,9 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts'
+
 import './App.css'
+
 import {
   MapContainer,
   TileLayer,
@@ -16,9 +19,12 @@ import {
   Popup,
   Tooltip as MapTooltip
 } from 'react-leaflet'
+
 import 'leaflet/dist/leaflet.css'
 
+
 const cityCoordinates = {
+
   "Adana": [37.0004, 35.3220],
   "Adıyaman": [37.7669, 38.2767],
   "Afyonkarahisar": [38.7639, 30.5403],
@@ -80,7 +86,7 @@ const cityCoordinates = {
   "Osmaniye": [37.0681, 36.2616],
   "Rize": [41.0201, 40.5234],
   "Sakarya": [40.7731, 30.3948],
-  "Samsun": [41.2867, 36.33],
+  "Samsun": [41.2867, 36.3300],
   "Siirt": [37.9333, 41.9500],
   "Sinop": [42.0268, 35.1625],
   "Sivas": [39.7477, 37.0179],
@@ -94,78 +100,269 @@ const cityCoordinates = {
   "Van": [38.4942, 43.3800],
   "Yalova": [40.6500, 29.2667],
   "Yozgat": [39.8181, 34.8147],
-  "Zonguldak": [41.4564, 31.7987]
+  "Zonguldak": [41.4564, 31.7987],
+
+  "Germany": [51.1657, 10.4515]
+
 }
+
+
 function App() {
 
   const [selectedFile, setSelectedFile] = useState(null)
+
   const [uploadMessage, setUploadMessage] = useState('')
+
   const [validationResult, setValidationResult] = useState(null)
-  // Çoklu hata filtresi
-  // Boş dizi = tüm hatalar
+
   const [selectedErrorCodes, setSelectedErrorCodes] = useState([])
 
+  const [selectedWarningCodes, setSelectedWarningCodes] = useState([])
+
   const [revenueData, setRevenueData] = useState([])
+
   const [topMaterialsData, setTopMaterialsData] = useState([])
+
+  const [topMaterialsQuantityData, setTopMaterialsQuantityData] = useState([])
+
   const [ordersByCustomerData, setOrdersByCustomerData] = useState([])
+
   const [ordersByCityData, setOrdersByCityData] = useState([])
 
-  // Sonuç bölümüne kaydırmak için
+  const [summaryData, setSummaryData] = useState(null)
+
+  const [isGermanFile, setIsGermanFile] = useState(false)
+
   const resultsRef = useRef(null)
 
-  // Tablo sıralama bilgisi
   const [sortConfig, setSortConfig] = useState({
     table: '',
     key: '',
     direction: 'asc'
   })
-const topRevenueCustomers = [...revenueData]
-  .sort((a, b) => Number(b.revenue) - Number(a.revenue))
-  .slice(0, 10)
-  useEffect(() => {
 
-    fetch("http://localhost:8000/reports/revenue-by-customer")
-      .then((response) => response.json())
-      .then((data) => {
-        setRevenueData(data)
-      })
 
-    fetch("http://localhost:8000/reports/top-materials-by-value")
-      .then((response) => response.json())
-      .then((data) => {
-        setTopMaterialsData(data)
-      })
+  function formatCurrency(value) {
 
-    fetch("http://localhost:8000/reports/orders-by-customer")
-      .then((response) => response.json())
-      .then((data) => {
-        setOrdersByCustomerData(data)
-      })
-
-    fetch("http://localhost:8000/reports/orders-by-city")
-      .then((response) => response.json())
-      .then((data) => {
-        setOrdersByCityData(data)
-      })
-
-  }, [])
-
-  // --------------------------------
-  // DOSYA SEÇME
-  // --------------------------------
-
-  function handleFileChange(event) {
-
-    setSelectedFile(event.target.files[0])
-    setUploadMessage('')
-    setValidationResult(null)
-    setSelectedErrorCodes([])
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(Number(value))
 
   }
 
-  // --------------------------------
-  // DOSYA DOĞRULAMA
-  // --------------------------------
+
+  const topRevenueCustomers = [...revenueData]
+    .sort(
+      (a, b) =>
+        Number(b.revenue) - Number(a.revenue)
+    )
+    .slice(0, 10)
+
+
+  function loadReports() {
+
+    fetch(
+      'http://localhost:8000/reports/revenue-by-customer'
+    )
+      .then((response) => {
+
+        if (!response.ok) {
+          throw new Error('Revenue report error')
+        }
+
+        return response.json()
+
+      })
+      .then((data) => {
+
+        setRevenueData(
+          Array.isArray(data) ? data : []
+        )
+
+      })
+      .catch(() => {
+
+        setRevenueData([])
+
+      })
+
+
+    fetch(
+      'http://localhost:8000/reports/top-materials-by-value'
+    )
+      .then((response) => {
+
+        if (!response.ok) {
+          throw new Error(
+            'Material value report error'
+          )
+        }
+
+        return response.json()
+
+      })
+      .then((data) => {
+
+        setTopMaterialsData(
+          Array.isArray(data) ? data : []
+        )
+
+      })
+      .catch(() => {
+
+        setTopMaterialsData([])
+
+      })
+
+
+    fetch(
+      'http://localhost:8000/reports/top-materials-by-quantity'
+    )
+      .then((response) => {
+
+        if (!response.ok) {
+          throw new Error(
+            'Material quantity report error'
+          )
+        }
+
+        return response.json()
+
+      })
+      .then((data) => {
+
+        setTopMaterialsQuantityData(
+          Array.isArray(data) ? data : []
+        )
+
+      })
+      .catch(() => {
+
+        setTopMaterialsQuantityData([])
+
+      })
+
+
+    fetch(
+      'http://localhost:8000/reports/orders-by-customer'
+    )
+      .then((response) => {
+
+        if (!response.ok) {
+          throw new Error('Customer report error')
+        }
+
+        return response.json()
+
+      })
+      .then((data) => {
+
+        setOrdersByCustomerData(
+          Array.isArray(data) ? data : []
+        )
+
+      })
+      .catch(() => {
+
+        setOrdersByCustomerData([])
+
+      })
+
+
+    fetch(
+      'http://localhost:8000/reports/orders-by-city'
+    )
+      .then((response) => {
+
+        if (!response.ok) {
+          throw new Error('City report error')
+        }
+
+        return response.json()
+
+      })
+      .then((data) => {
+
+        setOrdersByCityData(
+          Array.isArray(data) ? data : []
+        )
+
+      })
+      .catch(() => {
+
+        setOrdersByCityData([])
+
+      })
+
+
+    fetch(
+      'http://localhost:8000/reports/summary'
+    )
+      .then((response) => {
+
+        if (!response.ok) {
+          throw new Error(
+            'Summary endpoint bulunamadı'
+          )
+        }
+
+        return response.json()
+
+      })
+      .then((data) => {
+
+        setSummaryData(data)
+
+      })
+      .catch(() => {
+
+        setSummaryData(null)
+
+      })
+
+  }
+
+
+  useEffect(() => {
+
+    loadReports()
+
+  }, [])
+
+
+  function handleFileChange(event) {
+
+    const file = event.target.files[0]
+
+    setSelectedFile(file)
+
+    setUploadMessage('')
+
+    setValidationResult(null)
+
+    setSelectedErrorCodes([])
+
+    setSelectedWarningCodes([])
+
+    if (file) {
+
+      setIsGermanFile(
+        file.name
+          .toLowerCase()
+          .includes('orders_de')
+      )
+
+    } else {
+
+      setIsGermanFile(false)
+
+    }
+
+  }
+
 
   async function handleFileUpload() {
 
@@ -176,7 +373,9 @@ const topRevenueCustomers = [...revenueData]
       )
 
       return
+
     }
+
 
     const formData = new FormData()
 
@@ -185,31 +384,51 @@ const topRevenueCustomers = [...revenueData]
       selectedFile
     )
 
+
     try {
 
       const response = await fetch(
-        "http://localhost:8000/validate",
+        'http://localhost:8000/validate',
         {
           method: 'POST',
           body: formData
         }
       )
 
+
       const data = await response.json()
+
+
+      console.log(
+        'VALIDATION DATA:',
+        data
+      )
+
+      console.log(
+        'WARNING COUNTS:',
+        data.warning_counts
+      )
+
 
       if (!response.ok) {
 
         setUploadMessage(
-          data.error || 'Dosya doğrulanamadı.'
+          data.error ||
+          'Dosya doğrulanamadı.'
         )
 
         setValidationResult(null)
 
         return
+
       }
 
+
       setUploadMessage('')
+
       setValidationResult(data)
+
+      loadReports()
 
     } catch (error) {
 
@@ -218,12 +437,11 @@ const topRevenueCustomers = [...revenueData]
       )
 
       setValidationResult(null)
+
     }
+
   }
 
-  // --------------------------------
-  // DOĞRULAMA SONUCUNA KAYDIR
-  // --------------------------------
 
   useEffect(() => {
 
@@ -238,9 +456,6 @@ const topRevenueCustomers = [...revenueData]
 
   }, [validationResult])
 
-  // --------------------------------
-  // HATA FİLTRESİ
-  // --------------------------------
 
   function toggleErrorCode(code) {
 
@@ -263,15 +478,42 @@ const topRevenueCustomers = [...revenueData]
 
   }
 
+
   function selectAllErrors() {
 
     setSelectedErrorCodes([])
 
   }
 
-  // --------------------------------
-  // TABLO SIRALAMA
-  // --------------------------------
+
+  function toggleWarningCode(code) {
+
+    setSelectedWarningCodes((current) => {
+
+      if (current.includes(code)) {
+
+        return current.filter(
+          (item) => item !== code
+        )
+
+      }
+
+      return [
+        ...current,
+        code
+      ]
+
+    })
+
+  }
+
+
+  function selectAllWarnings() {
+
+    setSelectedWarningCodes([])
+
+  }
+
 
   function handleSort(table, key) {
 
@@ -303,6 +545,7 @@ const topRevenueCustomers = [...revenueData]
 
   }
 
+
   function getSortedData(data, table) {
 
     const config = sortConfig
@@ -316,31 +559,38 @@ const topRevenueCustomers = [...revenueData]
 
     }
 
+
     return [...data].sort((a, b) => {
 
       const valueA = a[config.key]
+
       const valueB = b[config.key]
 
       const numberA = Number(valueA)
+
       const numberB = Number(valueB)
 
       let comparison
+
 
       if (
         !Number.isNaN(numberA) &&
         !Number.isNaN(numberB)
       ) {
 
-        comparison = numberA - numberB
+        comparison =
+          numberA - numberB
 
       } else {
 
-        comparison = String(valueA ?? '').localeCompare(
-          String(valueB ?? ''),
-          'tr'
-        )
+        comparison =
+          String(valueA ?? '').localeCompare(
+            String(valueB ?? ''),
+            'tr'
+          )
 
       }
+
 
       return config.direction === 'asc'
         ? comparison
@@ -349,6 +599,7 @@ const topRevenueCustomers = [...revenueData]
     })
 
   }
+
 
   function getSortIcon(table, key) {
 
@@ -361,22 +612,22 @@ const topRevenueCustomers = [...revenueData]
 
     }
 
+
     return sortConfig.direction === 'asc'
       ? '↑'
       : '↓'
 
   }
 
-  // --------------------------------
-  // RENDER
-  // --------------------------------
 
   return (
+
     <div className="app-container">
 
       <h1 className="page-title">
         Order Intake
       </h1>
+
 
       <div className="welcome-section">
 
@@ -389,9 +640,11 @@ const topRevenueCustomers = [...revenueData]
           doğrulayın ve detaylı raporları inceleyin.
         </p>
 
+
         <div className="feature-container">
 
           <div className="feature-box">
+
             <div className="feature-title">
               ✓ Veri Doğrulama
             </div>
@@ -399,9 +652,12 @@ const topRevenueCustomers = [...revenueData]
             <div className="feature-text">
               Sipariş satırlarını kontrol edin
             </div>
+
           </div>
 
+
           <div className="feature-box">
+
             <div className="feature-title">
               ↯ Hata Analizi
             </div>
@@ -409,9 +665,12 @@ const topRevenueCustomers = [...revenueData]
             <div className="feature-text">
               Reddedilen kayıtları inceleyin
             </div>
+
           </div>
 
+
           <div className="feature-box">
+
             <div className="feature-title">
               ▦ Raporlama
             </div>
@@ -419,13 +678,13 @@ const topRevenueCustomers = [...revenueData]
             <div className="feature-text">
               Gelir ve sipariş raporlarını görüntüleyin
             </div>
+
           </div>
 
         </div>
 
       </div>
 
-      {/* DOSYA SEÇ */}
 
       <input
         type="file"
@@ -433,22 +692,25 @@ const topRevenueCustomers = [...revenueData]
         onChange={handleFileChange}
       />
 
+
       {selectedFile && (
+
         <p className="selected-file">
           Seçilen dosya: {selectedFile.name}
         </p>
+
       )}
+
 
       <p className="upload-message">
         {uploadMessage}
       </p>
 
+
       <button onClick={handleFileUpload}>
         Doğrula
       </button>
 
-
-      {/* SONUÇLAR */}
 
       {validationResult && (
 
@@ -457,6 +719,7 @@ const topRevenueCustomers = [...revenueData]
           className="results-section"
         >
 
+
           {/* DOĞRULAMA SONUCU */}
 
           <div className="card">
@@ -464,6 +727,7 @@ const topRevenueCustomers = [...revenueData]
             <h2 className="section-title">
               Doğrulama Sonucu
             </h2>
+
 
             <div className="stats-container">
 
@@ -495,162 +759,469 @@ const topRevenueCustomers = [...revenueData]
             </div>
 
 
-            {/* HATA FİLTRESİ */}
+            {/* GENEL ÖZET */}
+
+            {summaryData && (
+
+              <div className="stats-container">
+
+                <div className="stat-box">
+
+                  <div className="stat-label">
+                    Temiz Veride Farklı Müşteri
+                  </div>
+
+                  <div className="stat-number">
+
+                    {summaryData.distinct_customers ?? 0}
+
+                    {' / '}
+
+                    {summaryData.total_customers ?? 0}
+
+                  </div>
+
+                </div>
+
+
+                <div className="stat-box">
+
+                  <div className="stat-label">
+                    Temiz Veride Farklı Malzeme
+                  </div>
+
+                  <div className="stat-number">
+
+                    {summaryData.distinct_materials ?? 0}
+
+                    {' / '}
+
+                    {summaryData.total_materials ?? 0}
+
+                  </div>
+
+                </div>
+
+
+                <div className="stat-box">
+
+                  <div className="stat-label">
+                    Temiz Veri Toplam Geliri
+                  </div>
+
+                  <div className="stat-number">
+
+                    {formatCurrency(
+                      summaryData.total_clean_revenue ?? 0
+                    )}
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            )}
+
+
+            {/* UYARI FİLTRESİ */}
 
             <h3>
-              Hata Kodları
+              Uyarılar
             </h3>
+
 
             <ul>
 
               <li
                 className={
-                  selectedErrorCodes.length === 0
+                  selectedWarningCodes.length === 0
                     ? 'active-error'
                     : ''
                 }
-                onClick={selectAllErrors}
+                onClick={selectAllWarnings}
               >
-                Tüm Hatalar
+                Tüm Uyarılar
               </li>
 
-              {Object.entries(
-                validationResult.error_counts
-              ).map(([code, count]) => (
 
-                <li
-                  key={code}
-                  className={
-                    selectedErrorCodes.includes(code)
-                      ? 'active-error'
-                      : ''
-                  }
-                  onClick={() =>
-                    toggleErrorCode(code)
-                  }
-                >
-                  {code}: {count}
-                </li>
+              <li
+                className={
+                  selectedWarningCodes.includes('W001')
+                    ? 'active-error'
+                    : ''
+                }
+                onClick={() =>
+                  toggleWarningCode('W001')
+                }
+              >
+                W001: {
+                  validationResult.warning_counts?.W001 ?? 0
+                }
+              </li>
 
-              ))}
+
+              <li
+                className={
+                  selectedWarningCodes.includes('W002')
+                    ? 'active-error'
+                    : ''
+                }
+                onClick={() =>
+                  toggleWarningCode('W002')
+                }
+              >
+                W002: {
+                  validationResult.warning_counts?.W002 ?? 0
+                }
+              </li>
 
             </ul>
 
 
-            {/* REDDEDİLEN SATIRLAR */}
+            {/* W001 DETAYLARI */}
 
-            <h3>
-              Reddedilen Satırlar
-            </h3>
+            {(selectedWarningCodes.length === 0 ||
+              selectedWarningCodes.includes('W001')) &&
 
-            <table>
+              validationResult.warning_details?.length > 0 && (
 
-              <thead>
+                <table>
 
-                <tr>
+                  <thead>
 
-                  <th
-                    onClick={() =>
-                      handleSort(
-                        'rejected',
-                        'order_id'
+                    <tr>
+
+                      <th>Uyarı</th>
+                      <th>Müşteri</th>
+                      <th>Sipariş</th>
+                      <th>Satır</th>
+                      <th>Malzeme</th>
+                      <th>Liste Fiyatı</th>
+                      <th>Gerçek Fiyat</th>
+                      <th>Açıklama</th>
+
+                    </tr>
+
+                  </thead>
+
+
+                  <tbody>
+
+                    {validationResult.warning_details.map(
+                      (warning, index) => (
+
+                        <tr key={index}>
+
+                          <td>
+                            {warning.warning_code}
+                          </td>
+
+                          <td>
+                            {warning.customer_id}
+                          </td>
+
+                          <td>
+                            {warning.order_id}
+                          </td>
+
+                          <td>
+                            {warning.line_no}
+                          </td>
+
+                          <td>
+                            {warning.material_code}
+                          </td>
+
+                          <td>
+                            {formatCurrency(
+                              warning.list_price
+                            )}
+                          </td>
+
+                          <td>
+                            {formatCurrency(
+                              warning.actual_price
+                            )}
+                          </td>
+
+                          <td>
+                            {warning.warning_message}
+                          </td>
+
+                        </tr>
+
                       )
-                    }
-                  >
-                    Order ID{' '}
-                    {getSortIcon(
-                      'rejected',
-                      'order_id'
                     )}
-                  </th>
 
-                  <th
-                    onClick={() =>
-                      handleSort(
-                        'rejected',
-                        'line_no'
+                  </tbody>
+
+                </table>
+
+              )}
+
+
+            {/* W002 DETAYLARI */}
+
+            {(selectedWarningCodes.length === 0 ||
+              selectedWarningCodes.includes('W002')) &&
+
+              validationResult.warning_customers?.length > 0 && (
+
+                <table>
+
+                  <thead>
+
+                    <tr>
+
+                      <th>Uyarı</th>
+                      <th>Müşteri</th>
+                      <th>Açıklama</th>
+                      <th>Toplam Tutar</th>
+                      <th>Kredi Limiti</th>
+
+                    </tr>
+
+                  </thead>
+
+
+                  <tbody>
+
+                    {validationResult.warning_customers.map(
+                      (warning, index) => (
+
+                        <tr key={index}>
+
+                          <td>
+                            {warning.warning_code}
+                          </td>
+
+                          <td>
+                            {warning.customer_id}
+                          </td>
+
+                          <td>
+                            {warning.warning_message}
+                          </td>
+
+                          <td>
+                            {formatCurrency(
+                              warning.total
+                            )}
+                          </td>
+
+                          <td>
+                            {formatCurrency(
+                              warning.credit_limit
+                            )}
+                          </td>
+
+                        </tr>
+
                       )
-                    }
-                  >
-                    Line No{' '}
-                    {getSortIcon(
-                      'rejected',
-                      'line_no'
                     )}
-                  </th>
 
-                  <th
-                    onClick={() =>
-                      handleSort(
-                        'rejected',
-                        'error_code'
-                      )
+                  </tbody>
+
+                </table>
+
+              )}
+
+
+            {/* HATA FİLTRESİ - SADECE TÜRK DOSYASI */}
+
+            {!isGermanFile && (
+
+              <>
+
+                <h3>
+                  Hata Kodları
+                </h3>
+
+
+                <ul>
+
+                  <li
+                    className={
+                      selectedErrorCodes.length === 0
+                        ? 'active-error'
+                        : ''
                     }
+                    onClick={selectAllErrors}
                   >
-                    Hata Kodu{' '}
-                    {getSortIcon(
-                      'rejected',
-                      'error_code'
-                    )}
-                  </th>
+                    Tüm Hatalar
+                  </li>
 
-                  <th
-                    onClick={() =>
-                      handleSort(
-                        'rejected',
-                        'error_message'
-                      )
-                    }
-                  >
-                    Hata Mesajı{' '}
-                    {getSortIcon(
-                      'rejected',
-                      'error_message'
-                    )}
-                  </th>
 
-                </tr>
+                  {Object.entries(
+                    validationResult.error_counts || {}
+                  ).map(([code, count]) => (
 
-              </thead>
+                    <li
+                      key={code}
+                      className={
+                        selectedErrorCodes.includes(code)
+                          ? 'active-error'
+                          : ''
+                      }
+                      onClick={() =>
+                        toggleErrorCode(code)
+                      }
+                    >
+                      {code}: {count}
+                    </li>
 
-              <tbody>
+                  ))}
 
-                {getSortedData(
-                  validationResult.rejected_rows.filter(
-                    (row) =>
-                      selectedErrorCodes.length === 0 ||
-                      selectedErrorCodes.includes(
-                        row.error_code
-                      )
-                  ),
-                  'rejected'
-                ).map((row, index) => (
+                </ul>
 
-                  <tr key={index}>
+              </>
 
-                    <td>
-                      {row.order_id}
-                    </td>
+            )}
 
-                    <td>
-                      {row.line_no}
-                    </td>
 
-                    <td className="error-code">
-                      {row.error_code}
-                    </td>
+            {/* REDDEDİLEN SATIRLAR - SADECE TÜRK DOSYASI */}
 
-                    <td>
-                      {row.error_message}
-                    </td>
+            {!isGermanFile && (
 
-                  </tr>
+              <>
 
-                ))}
+                <h3>
+                  Reddedilen Satırlar
+                </h3>
 
-              </tbody>
 
-            </table>
+                <table>
+
+                  <thead>
+
+                    <tr>
+
+                      <th
+                        onClick={() =>
+                          handleSort(
+                            'rejected',
+                            'order_id'
+                          )
+                        }
+                        style={{
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Order ID{' '}
+                        {getSortIcon(
+                          'rejected',
+                          'order_id'
+                        )}
+                      </th>
+
+
+                      <th
+                        onClick={() =>
+                          handleSort(
+                            'rejected',
+                            'line_no'
+                          )
+                        }
+                        style={{
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Line No{' '}
+                        {getSortIcon(
+                          'rejected',
+                          'line_no'
+                        )}
+                      </th>
+
+
+                      <th
+                        onClick={() =>
+                          handleSort(
+                            'rejected',
+                            'error_code'
+                          )
+                        }
+                        style={{
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Hata Kodu{' '}
+                        {getSortIcon(
+                          'rejected',
+                          'error_code'
+                        )}
+                      </th>
+
+
+                      <th
+                        onClick={() =>
+                          handleSort(
+                            'rejected',
+                            'error_message'
+                          )
+                        }
+                        style={{
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Hata Mesajı{' '}
+                        {getSortIcon(
+                          'rejected',
+                          'error_message'
+                        )}
+                      </th>
+
+                    </tr>
+
+                  </thead>
+
+
+                  <tbody>
+
+                    {getSortedData(
+
+                      validationResult.rejected_rows.filter(
+                        (row) =>
+                          selectedErrorCodes.length === 0 ||
+                          selectedErrorCodes.includes(
+                            row.error_code
+                          )
+                      ),
+
+                      'rejected'
+
+                    ).map((row, index) => (
+
+                      <tr key={index}>
+
+                        <td>
+                          {row.order_id}
+                        </td>
+
+                        <td>
+                          {row.line_no}
+                        </td>
+
+                        <td className="error-code">
+                          {row.error_code}
+                        </td>
+
+                        <td>
+                          {row.error_message}
+                        </td>
+
+                      </tr>
+
+                    ))}
+
+                  </tbody>
+
+                </table>
+
+              </>
+
+            )}
 
           </div>
 
@@ -662,6 +1233,7 @@ const topRevenueCustomers = [...revenueData]
             <h2 className="section-title">
               Müşteri Gelirleri
             </h2>
+
 
             <table>
 
@@ -676,6 +1248,9 @@ const topRevenueCustomers = [...revenueData]
                         'customer_name'
                       )
                     }
+                    style={{
+                      cursor: 'pointer'
+                    }}
                   >
                     Müşteri{' '}
                     {getSortIcon(
@@ -684,6 +1259,7 @@ const topRevenueCustomers = [...revenueData]
                     )}
                   </th>
 
+
                   <th
                     onClick={() =>
                       handleSort(
@@ -691,6 +1267,9 @@ const topRevenueCustomers = [...revenueData]
                         'revenue'
                       )
                     }
+                    style={{
+                      cursor: 'pointer'
+                    }}
                   >
                     Gelir{' '}
                     {getSortIcon(
@@ -702,6 +1281,7 @@ const topRevenueCustomers = [...revenueData]
                 </tr>
 
               </thead>
+
 
               <tbody>
 
@@ -717,15 +1297,9 @@ const topRevenueCustomers = [...revenueData]
                     </td>
 
                     <td>
-                      {Number(
+                      {formatCurrency(
                         row.revenue
-                      ).toLocaleString(
-                        'tr-TR',
-                        {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        }
-                      )} ₺
+                      )}
                     </td>
 
                   </tr>
@@ -740,6 +1314,7 @@ const topRevenueCustomers = [...revenueData]
             <h3 className="chart-title">
               Müşteri Gelir Grafiği
             </h3>
+
 
             <div className="chart-container">
 
@@ -762,12 +1337,19 @@ const topRevenueCustomers = [...revenueData]
                   <XAxis
                     type="number"
                     domain={[0, 750000]}
-                    ticks={[250000, 350000, 450000, 550000, 650000, 750000]}
+                    ticks={[
+                      250000,
+                      350000,
+                      450000,
+                      550000,
+                      650000,
+                      750000
+                    ]}
                     tickFormatter={(value) =>
-                    value.toLocaleString('tr-TR')
-                  
-                  }
+                      value.toLocaleString('tr-TR')
+                    }
                   />
+
 
                   <YAxis
                     type="category"
@@ -778,21 +1360,15 @@ const topRevenueCustomers = [...revenueData]
                     }}
                   />
 
+
                   <Tooltip
                     cursor={false}
                     formatter={(value) => [
-                      `${Number(
-                        value
-                      ).toLocaleString(
-                        'tr-TR',
-                        {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        }
-                      )} ₺`,
+                      formatCurrency(value),
                       'Gelir'
                     ]}
                   />
+
 
                   <Bar
                     dataKey="revenue"
@@ -816,6 +1392,7 @@ const topRevenueCustomers = [...revenueData]
               En Değerli Malzemeler
             </h2>
 
+
             <table>
 
               <thead>
@@ -829,6 +1406,9 @@ const topRevenueCustomers = [...revenueData]
                         'material_name'
                       )
                     }
+                    style={{
+                      cursor: 'pointer'
+                    }}
                   >
                     Malzeme{' '}
                     {getSortIcon(
@@ -837,6 +1417,7 @@ const topRevenueCustomers = [...revenueData]
                     )}
                   </th>
 
+
                   <th
                     onClick={() =>
                       handleSort(
@@ -844,6 +1425,9 @@ const topRevenueCustomers = [...revenueData]
                         'value'
                       )
                     }
+                    style={{
+                      cursor: 'pointer'
+                    }}
                   >
                     Değer{' '}
                     {getSortIcon(
@@ -855,6 +1439,7 @@ const topRevenueCustomers = [...revenueData]
                 </tr>
 
               </thead>
+
 
               <tbody>
 
@@ -870,15 +1455,96 @@ const topRevenueCustomers = [...revenueData]
                     </td>
 
                     <td>
-                      {Number(
+                      {formatCurrency(
                         row.value
-                      ).toLocaleString(
-                        'tr-TR',
-                        {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        }
-                      )} ₺
+                      )}
+                    </td>
+
+                  </tr>
+
+                ))}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+
+          {/* ADET SAYISINA GÖRE İLK 10 MALZEME */}
+
+          <div className="card">
+
+            <h2 className="section-title">
+              Adet Sayısına Göre İlk 10 Malzeme
+            </h2>
+
+
+            <table>
+
+              <thead>
+
+                <tr>
+
+                  <th
+                    onClick={() =>
+                      handleSort(
+                        'topMaterialsQuantity',
+                        'material_name'
+                      )
+                    }
+                    style={{
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Malzeme{' '}
+                    {getSortIcon(
+                      'topMaterialsQuantity',
+                      'material_name'
+                    )}
+                  </th>
+
+
+                  <th
+                    onClick={() =>
+                      handleSort(
+                        'topMaterialsQuantity',
+                        'quantity'
+                      )
+                    }
+                    style={{
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Toplam Miktar{' '}
+                    {getSortIcon(
+                      'topMaterialsQuantity',
+                      'quantity'
+                    )}
+                  </th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                {getSortedData(
+                  topMaterialsQuantityData,
+                  'topMaterialsQuantity'
+                ).map((row, index) => (
+
+                  <tr key={index}>
+
+                    <td>
+                      {row.material_name}
+                    </td>
+
+                    <td>
+                      {Number(
+                        row.quantity
+                      ).toLocaleString('tr-TR')}
                     </td>
 
                   </tr>
@@ -900,6 +1566,7 @@ const topRevenueCustomers = [...revenueData]
               Müşteri Sipariş Özeti
             </h2>
 
+
             <table>
 
               <thead>
@@ -913,6 +1580,9 @@ const topRevenueCustomers = [...revenueData]
                         'customer_name'
                       )
                     }
+                    style={{
+                      cursor: 'pointer'
+                    }}
                   >
                     Müşteri{' '}
                     {getSortIcon(
@@ -921,6 +1591,7 @@ const topRevenueCustomers = [...revenueData]
                     )}
                   </th>
 
+
                   <th
                     onClick={() =>
                       handleSort(
@@ -928,6 +1599,9 @@ const topRevenueCustomers = [...revenueData]
                         'order_count'
                       )
                     }
+                    style={{
+                      cursor: 'pointer'
+                    }}
                   >
                     Sipariş Sayısı{' '}
                     {getSortIcon(
@@ -939,6 +1613,7 @@ const topRevenueCustomers = [...revenueData]
                 </tr>
 
               </thead>
+
 
               <tbody>
 
@@ -976,6 +1651,7 @@ const topRevenueCustomers = [...revenueData]
               Şehir Bazlı Siparişler
             </h2>
 
+
             <table>
 
               <thead>
@@ -989,6 +1665,9 @@ const topRevenueCustomers = [...revenueData]
                         'city'
                       )
                     }
+                    style={{
+                      cursor: 'pointer'
+                    }}
                   >
                     Şehir{' '}
                     {getSortIcon(
@@ -997,6 +1676,7 @@ const topRevenueCustomers = [...revenueData]
                     )}
                   </th>
 
+
                   <th
                     onClick={() =>
                       handleSort(
@@ -1004,6 +1684,9 @@ const topRevenueCustomers = [...revenueData]
                         'order_count'
                       )
                     }
+                    style={{
+                      cursor: 'pointer'
+                    }}
                   >
                     Sipariş Sayısı{' '}
                     {getSortIcon(
@@ -1015,6 +1698,7 @@ const topRevenueCustomers = [...revenueData]
                 </tr>
 
               </thead>
+
 
               <tbody>
 
@@ -1042,62 +1726,130 @@ const topRevenueCustomers = [...revenueData]
             </table>
 
           </div>
+
+
+          {/* HARİTA */}
+
           <div className="map-container">
-  <MapContainer
-    center={[39, 35]}
-    zoom={5.5}
-    scrollWheelZoom={false}
-    style={{ height: '420px', width: '100%' }}
-  >
-    <TileLayer
-      attribution='&copy; OpenStreetMap contributors'
-      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-    />
 
-    {ordersByCityData.map((row) => {
-      const coordinates = cityCoordinates[row.city]
+            <MapContainer
 
-      if (!coordinates) return null
+              key={
+                isGermanFile
+                  ? 'germany-map'
+                  : 'turkey-map'
+              }
 
-      return (
-        <CircleMarker
-  key={row.city}
-  center={coordinates}
-  radius={Math.max(6, Math.min(18, 5 + row.order_count * 0.8))}
-  pathOptions={{
-    fillColor: '#7f1d1d',
-    fillOpacity: 0.65,
-    color: '#5f1515',
-    weight: 2
-  }}
->
-  <MapTooltip
-    permanent
-    direction="top"
-    offset={[0, -5]}
-    className="city-label"
-  >
-    {row.city}
-  </MapTooltip>
+              center={
+                isGermanFile
+                  ? cityCoordinates["Germany"]
+                  : [39, 35]
+              }
 
-  <Popup>
-    <div className="city-popup">
-      <strong>{row.city}</strong>
-      <span>{row.order_count} sipariş</span>
-    </div>
-  </Popup>
-</CircleMarker>
-      )
-    })}
-  </MapContainer>
-</div>
+              zoom={
+                isGermanFile
+                  ? 5
+                  : 5.5
+              }
+
+              scrollWheelZoom={false}
+
+              style={{
+                height: '420px',
+                width: '100%'
+              }}
+
+            >
+
+              <TileLayer
+                attribution="&copy; OpenStreetMap contributors"
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+
+
+              {ordersByCityData.map((row) => {
+
+                const coordinates =
+                  cityCoordinates[row.city]
+
+                if (!coordinates) {
+                  return null
+                }
+
+
+                return (
+
+                  <CircleMarker
+                    key={row.city}
+                    center={coordinates}
+
+                    radius={
+                      Math.max(
+                        6,
+                        Math.min(
+                          18,
+                          5 +
+                          Number(
+                            row.order_count
+                          ) * 0.8
+                        )
+                      )
+                    }
+
+                    pathOptions={{
+                      fillColor: '#7f1d1d',
+                      fillOpacity: 0.65,
+                      color: '#5f1515',
+                      weight: 2
+                    }}
+
+                  >
+
+                    <MapTooltip
+                      permanent
+                      direction="top"
+                      offset={[0, -5]}
+                      className="city-label"
+                    >
+                      {row.city}
+                    </MapTooltip>
+
+
+                    <Popup>
+
+                      <div className="city-popup">
+
+                        <strong>
+                          {row.city}
+                        </strong>
+
+                        <span>
+                          {row.order_count} sipariş
+                        </span>
+
+                      </div>
+
+                    </Popup>
+
+                  </CircleMarker>
+
+                )
+
+              })}
+
+            </MapContainer>
+
+          </div>
+
         </div>
 
       )}
 
     </div>
+
   )
+
 }
 
-export default App
 
+export default App
