@@ -1,30 +1,17 @@
 import csv
 from datetime import datetime
-from intake.german import read_german_orders, load_fx_rates
 
 DATE_FORMATS = ["%Y-%m-%d", "%d.%m.%Y", "%m/%d/%Y"]
 
-
 ERROR_MESSAGES = {
-
-    "E001": "Müşteri numarası customers.csv dosyasında bulunamadı",
-
-    "E002": "Müşteri bloke edilmiş",
-
-    "E003": "Malzeme kodu materials.csv dosyasında bulunamadı",
-
-    "E004": "Miktar eksik, sayısal değil veya pozitif değil",
-
-    "E005": "Sipariş tarihi eksik, geçersiz veya gelecekte",
-
-    "E006": "Aynı order_id + line_no kombinasyonu daha önce kullanılmış",
-
-    "E007": "Satır yapısal olarak geçersiz (eksik alan veya tekrarlanan başlık)",
-
+    "E001": "Müşteri ID'si customers.csv dosyasında bulunamadı",
+"E002": "Müşteri engellenmiş durumda",
+"E003": "Malzeme kodu materials.csv dosyasında bulunamadı",
+"E004": "Miktar eksik, sayısal değil veya pozitif değil",
+"E005": "Sipariş tarihi eksik, geçersiz veya gelecekte",
+"E006": "Aynı order_id + line_no kombinasyonu daha önce kullanılmış",
+"E007": "Satır yapısal olarak geçersiz (eksik alan veya yinelenen başlık)",
 }
-
-
-OUTPUT_FIELDS = ["order_id", "line_no", "customer_id", "material_code", "quantity", "unit_price", "order_date", "ship_to_city", "source"]
 
 
 def parse_date(value):
@@ -67,14 +54,22 @@ def check_material_exists(row, material_codes):
 
 def check_quantity_valid(row):
     value = row["quantity"]
+
     if not value:
         return "E004"
+
     try:
-        quantity = float(value)
+        cleaned_value = str(value).strip()
+        cleaned_value = cleaned_value.replace(" ", "")
+        cleaned_value = cleaned_value.replace(",", ".")
+
+        quantity = float(cleaned_value)
     except ValueError:
         return "E004"
+
     if quantity <= 0:
         return "E004"
+
     return None
 
 
@@ -91,10 +86,9 @@ def check_order_date(row):
 
 
 def validate_row(row, fieldnames, customer_ids, blocked_customer_ids, material_codes):
-    if fieldnames is not None:
-        error = check_structure(row, fieldnames)
-        if error:
-            return error
+    error = check_structure(row, fieldnames)
+    if error:
+        return error
 
     error = check_customer_exists(row, customer_ids)
     if error:
@@ -135,6 +129,22 @@ def check_credit_limit_exceeded(customer_id, customer_totals, credit_limits):
     return None
 
 
+def write_clean_csv(rows, fieldnames):
+    output_fieldnames = fieldnames + ["warnings"]
+    with open("clean.csv", "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=output_fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def write_rejects_csv(rows, fieldnames):
+    output_fieldnames = fieldnames + ["error_code", "error_message"]
+    with open("rejects.csv", "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=output_fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def run_validate():
     with open("data/customers.csv", "r", encoding="utf-8") as f:
         customer_rows = list(csv.DictReader(f))
@@ -149,21 +159,15 @@ def run_validate():
 
     with open("data/orders_2026_07.csv", "r", encoding="cp1254") as f:
         reader = csv.DictReader(f)
-        domestic_fieldnames = reader.fieldnames
-        domestic_rows = list(reader)
-
-    fx_rates = load_fx_rates("data/fx_rates.csv")
-    german_rows = read_german_orders("data/orders_de_2026_07.csv", fx_rates)
-
-    all_entries = [(row, domestic_fieldnames, "domestic") for row in domestic_rows]
-    all_entries += [(row, None, "germany") for row in german_rows]
+        fieldnames = reader.fieldnames
+        rows = list(reader)
 
     error_counts = {}
-    clean_entries = []
+    clean_rows = []
     rejected_rows = []
     seen_keys = set()
 
-    for row, fieldnames, source in all_entries:
+    for row in rows:
         error = validate_row(row, fieldnames, customer_ids, blocked_customer_ids, material_codes)
 
         if error is None:
@@ -174,63 +178,45 @@ def run_validate():
                 seen_keys.add(key)
 
         if error is None:
-            clean_entries.append((row, source))
+            clean_rows.append(row)
         else:
             error_counts[error] = error_counts.get(error, 0) + 1
-            reject_row = {name: row.get(name) for name in OUTPUT_FIELDS if name != "source"}
-            reject_row["source"] = source
+            reject_row = {name: row.get(name) for name in fieldnames}
             reject_row["error_code"] = error
             reject_row["error_message"] = ERROR_MESSAGES[error]
             rejected_rows.append(reject_row)
 
     customer_totals = {}
-    for row, source in clean_entries:
+    for row in clean_rows:
         customer_id = row["customer_id"]
         line_value = float(row["quantity"]) * float(row["unit_price"])
         customer_totals[customer_id] = customer_totals.get(customer_id, 0) + line_value
 
     warning_counts = {}
     clean_with_warnings = []
-    for row, source in clean_entries:
+    for row in clean_rows:
         warnings = []
 
-        if source != "germany":
-            warning = check_price_deviation(row, material_prices)
-            if warning:
-                warnings.append(warning)
-                warning_counts[warning] = warning_counts.get(warning, 0) + 1
+        warning = check_price_deviation(row, material_prices)
+        if warning:
+            warnings.append(warning)
+            warning_counts[warning] = warning_counts.get(warning, 0) + 1
 
         warning = check_credit_limit_exceeded(row["customer_id"], customer_totals, credit_limits)
         if warning:
             warnings.append(warning)
             warning_counts[warning] = warning_counts.get(warning, 0) + 1
 
-        row_with_warnings = {name: row.get(name) for name in OUTPUT_FIELDS if name != "source"}
-        row_with_warnings["source"] = source
+        row_with_warnings = dict(row)
         row_with_warnings["warnings"] = ",".join(warnings)
         clean_with_warnings.append(row_with_warnings)
 
-    write_clean_csv(clean_with_warnings)
-    write_rejects_csv(rejected_rows)
+    write_clean_csv(clean_with_warnings, fieldnames)
+    write_rejects_csv(rejected_rows, fieldnames)
 
     print("Doğrulama sonucu:")
-    print("Geçen satır:", len(clean_entries))
+    print("Geçen satır:", len(clean_rows))
     print("Reddedilen satır:", len(rejected_rows))
     print("Hata koduna göre dağılım:", error_counts)
     print("Uyarı koduna göre dağılım (temiz satırlar üzerinde):", warning_counts)
-
-
-def write_clean_csv(rows):
-    output_fieldnames = OUTPUT_FIELDS + ["warnings"]
-    with open("clean.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=output_fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def write_rejects_csv(rows):
-    output_fieldnames = OUTPUT_FIELDS + ["error_code", "error_message"]
-    with open("rejects.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=output_fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+    print("clean.csv ve rejects.csv yazıldı.")
